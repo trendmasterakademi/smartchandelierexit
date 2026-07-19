@@ -1,0 +1,120 @@
+TRIX TREND
+==========
+
+OVERVIEW
+--------
+Trix Trend is a momentum oscillator based on TRIX - the rate of change of a
+triple-smoothed exponential moving average of price. Triple smoothing removes most
+of the short-term noise, so the oscillator reacts to the underlying momentum of the
+move rather than to every small wiggle, while staying more responsive than a simple
+long moving average.
+
+The indicator draws a slope-colored TRIX line, a weighted signal line, a zero line,
+and two adjustable overbought/oversold levels. The line is colored by the direction
+and strength of its own slope, using an adaptive threshold that scales with recent
+volatility - so the coloring stays meaningful on both quiet and fast instruments.
+
+A distinctive feature is the crossover-preserving visual gap: the signal line is
+drawn with its distance to the TRIX line slightly exaggerated for readability, but
+in a way that leaves the actual crossover points exactly where they mathematically
+occur. You get clearer separation between the two lines without any false or shifted
+crosses.
+
+The indicator is non-repainting: values are computed on closed bars, left to right,
+with standard exponential smoothing applied to the close price. History is stable.
+
+
+WHAT YOU SEE ON THE CHART (separate window)
+-------------------------------------------
+1. TRIX LINE (main plot, "Trix Trend") - a colored line:
+   - Green: momentum is rising (positive slope beyond the adaptive threshold).
+   - Red:   momentum is falling (negative slope beyond the adaptive threshold).
+   - Gray:  momentum is flat / indecisive (slope within the threshold).
+
+2. SIGNAL LINE ("Signal") - a dotted gold line:
+   A weighted, smoothed version of the TRIX line. Crossovers between the TRIX line
+   and the signal line are the timing triggers.
+
+3. ZERO LINE (solid, level 0):
+   The momentum baseline. TRIX above zero = net upward momentum regime; below zero
+   = net downward momentum regime.
+
+4. UPPER / LOWER LEVELS (dotted):
+   Reference lines at InpUpperLevel (blue) and InpLowerLevel (orange). When TRIX
+   reaches these, momentum is stretched (overbought / oversold).
+
+
+HOW TO READ IT
+--------------
+- Regime (zero line): TRIX above 0 favors longs, below 0 favors shorts.
+- Acceleration (line color): green = strengthening in the current direction,
+  red = weakening/reversing, gray = losing conviction / consolidation.
+- Trigger (crossover): TRIX crossing above its signal line is a bullish momentum
+  trigger; crossing below is bearish. The visual gap makes these crosses easy to
+  see but never moves where they actually happen.
+- Exhaustion (levels): TRIX pushing beyond the upper/lower levels warns that the
+  move is stretched and may be due for a pause or pullback.
+
+
+THE ADAPTIVE COLOR THRESHOLD
+----------------------------
+Instead of a fixed cutoff, the line color uses a threshold derived from the recent
+average magnitude of TRIX (a simple average of |TRIX| over InpAmpPeriod bars). This
+means the "flat/gray" zone automatically widens on volatile instruments and narrows
+on quiet ones, so the green/red coloring reflects genuine acceleration rather than
+noise on any symbol or timeframe.
+
+
+THE VISUAL GAP (why the signal line looks separated)
+----------------------------------------------------
+The raw signal is a weighted blend of a fast and a slow EMA of TRIX. For display,
+the gap between the TRIX line and this signal is multiplied by InpVisualGapMultiplier
+so the two lines are easier to tell apart when they run close together. At the exact
+moment of a crossover the TRIX line equals the raw signal, so the multiplier has no
+effect there - the cross stays precisely at its true location. The exaggeration is
+purely cosmetic and does not change any signal timing.
+
+
+INPUT PARAMETERS
+----------------
+--- TRIX Math ---
+InpPeriodEMA         (default 14)   Period of each of the three EMAs (triple smoothing).
+                                    Larger = smoother and slower; smaller = faster.
+InpPeriodSignalFast  (default 3)    Fast EMA period used to build the signal line.
+InpPeriodSignalSlow  (default 9)    Slow EMA period used to build the signal line.
+InpFastWeight        (default 0.7)  Weight of the fast component in the signal blend.
+InpSlowWeight        (default 0.3)  Weight of the slow component in the signal blend.
+InpAutoNormalizeWeights (default true)  If true, the two weights are auto-scaled to
+                                    sum to 1 (so you can enter any positive pair). If
+                                    false, they must already sum to 1.
+InpAmpPeriod         (default 20)   Averaging period for the adaptive color threshold
+                                    (average |TRIX| used to decide green/red/gray).
+
+--- Visual ---
+InpVisualGapMultiplier (default 2.5)  Cosmetic separation between the TRIX and signal
+                                    lines (2.0 - 4.0 recommended). Cross points are
+                                    always preserved.
+InpUpperLevel        (default 5.0)  Overbought reference level.
+InpLowerLevel        (default -5.0) Oversold reference level.
+
+
+A NOTE ON THE LEVELS
+--------------------
+Different instruments and timeframes produce different typical TRIX ranges, so the
+default +5 / -5 will not fit every market. If TRIX rarely reaches the levels on your
+chart, narrow them so they mark genuine extremes; if TRIX pushes past them often,
+widen them. Match the levels to where the oscillator actually spends its time. This
+only moves the reference lines; it does not change the oscillator itself.
+
+
+SUGGESTED USE
+-------------
+- Use the zero line for momentum bias, the line color for acceleration, and the
+  TRIX/signal crossover for entry timing.
+- Combine with a trend or structure tool for direction, and treat the upper/lower
+  levels as exhaustion warnings rather than automatic reversal signals.
+
+Works on any symbol and timeframe. Applied to the close price.
+
+This is an indicator for analysis and decision support. It does not place trades.
+Always test thoroughly before using any tool in live trading. Trading involves risk.
