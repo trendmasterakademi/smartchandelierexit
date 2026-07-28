@@ -46,9 +46,7 @@ input int    InpFakeFlipBars = 5;      // A flip held <= this many bars is tagge
 input group "=== Visual ==="
 input bool   InpShowPanel  = true;      // Show info panel
 input bool   InpShowFlips  = true;      // Show confirmed flip arrows
-input color  InpPanelColor = clrWhite;  // Panel text color
-input int    InpFontSize   = 10;        // Panel font size
-input int    InpCornerX    = 10;        // Panel offset from right edge (px)
+input int    InpCornerX    = 20;        // Panel offset from left edge (px)
 input int    InpCornerY    = 20;        // Panel offset from top edge (px)
 
 input group "=== Distance Unit ==="
@@ -118,14 +116,13 @@ double cachedRealAvgR   = 0;
 int    lastFlipCountForStats = -1;
 
 bool   panelCreated = false;
-string pL0,pL1,pSEP1,pL2,pSEP2,pL3,pL4;
 
 //+------------------------------------------------------------------+
 int OnInit()
 {
    if(InpATRPeriod <= 0 || InpLookback <= 0 || InpRPeriod <= 0 || InpMultiplier <= 0)
    {
-      Print("Smart Chandelier Exit: Hata! Parametreler 0 veya negatif olamaz.");
+      Print("Smart Chandelier Exit: invalid input. Periods and multiplier must be greater than zero.");
       return INIT_PARAMETERS_INCORRECT;
    }
 
@@ -160,12 +157,6 @@ int OnInit()
    ArrayResize(flipHistory,   200);
    ArrayResize(pendingArrows, 100);
 
-   pL0=panelPrefix+"L0"; pL1=panelPrefix+"L1";
-   pSEP1=panelPrefix+"S1";
-   pL2=panelPrefix+"L2";
-   pSEP2=panelPrefix+"S2";
-   pL3=panelPrefix+"L3"; pL4=panelPrefix+"L4";
-
    return INIT_SUCCEEDED;
 }
 
@@ -187,10 +178,21 @@ void DetermineDistUnit()
       return;
    }
    if(InpUnitMode==UNIT_POINT) { distLabel="pt"; distSize=_Point; return; }
+   
    ENUM_SYMBOL_CALC_MODE cm=(ENUM_SYMBOL_CALC_MODE)SymbolInfoInteger(_Symbol,SYMBOL_TRADE_CALC_MODE);
    bool fx=(cm==SYMBOL_CALC_MODE_FOREX||cm==SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE);
-   if(fx){ distLabel="pip"; distSize=(_Digits==5||_Digits==3)?_Point*10:_Point; }
-   else  { distLabel="pt";  distSize=_Point; }
+   
+   if(fx)
+   { 
+      distLabel="pip"; 
+      distSize=(_Digits==5||_Digits==3)?_Point*10:_Point; 
+   }
+   else  
+   { 
+      // Endeks, Kripto ve Hisse senetleri için MT5 Point'i yerine direkt fiyat farkını kullan
+      distLabel="";  
+      distSize=1.0; 
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -266,16 +268,31 @@ color RegimeClr(double r)
 //+------------------------------------------------------------------+
 //| Panel                                                            |
 //+------------------------------------------------------------------+
-void MakeObj(string name, int row, int lh, int x, int y)
+void MakeRect(string name, int x, int y, int w, int h)
+{
+   if(ObjectFind(0,name) < 0) ObjectCreate(0,name,OBJ_RECTANGLE_LABEL,0,0,0);
+   ObjectSetInteger(0,name,OBJPROP_CORNER,    CORNER_LEFT_UPPER);
+   ObjectSetInteger(0,name,OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0,name,OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0,name,OBJPROP_XSIZE,     w);
+   ObjectSetInteger(0,name,OBJPROP_YSIZE,     h);
+   ObjectSetInteger(0,name,OBJPROP_BGCOLOR,   C'15,15,15'); // Onyx Dark
+   ObjectSetInteger(0,name,OBJPROP_COLOR,     C'200,120,0'); // DarkOrange/Gold border
+   ObjectSetInteger(0,name,OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0,name,OBJPROP_SELECTABLE,false);
+   ObjectSetInteger(0,name,OBJPROP_HIDDEN,    true);
+   ObjectSetInteger(0,name,OBJPROP_BACK,      false);
+}
+
+void MakeLbl(string name, int x, int y, int fontSize, color clr, string font="Trebuchet MS")
 {
    if(ObjectFind(0,name) < 0) ObjectCreate(0,name,OBJ_LABEL,0,0,0);
-   ObjectSetInteger(0,name,OBJPROP_CORNER,    CORNER_RIGHT_UPPER);
-   ObjectSetInteger(0,name,OBJPROP_ANCHOR,    ANCHOR_RIGHT_UPPER);
+   ObjectSetInteger(0,name,OBJPROP_CORNER,    CORNER_LEFT_UPPER);
    ObjectSetInteger(0,name,OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0,name,OBJPROP_YDISTANCE, y + row*lh);
-   ObjectSetString (0,name,OBJPROP_FONT,      "Consolas");
-   ObjectSetInteger(0,name,OBJPROP_FONTSIZE,  InpFontSize);
-   ObjectSetInteger(0,name,OBJPROP_COLOR,     InpPanelColor);
+   ObjectSetInteger(0,name,OBJPROP_YDISTANCE, y);
+   ObjectSetString (0,name,OBJPROP_FONT,      font);
+   ObjectSetInteger(0,name,OBJPROP_FONTSIZE,  fontSize);
+   ObjectSetInteger(0,name,OBJPROP_COLOR,     clr);
    ObjectSetInteger(0,name,OBJPROP_SELECTABLE,false);
    ObjectSetInteger(0,name,OBJPROP_HIDDEN,    true);
    ObjectSetInteger(0,name,OBJPROP_BACK,      false);
@@ -284,28 +301,57 @@ void MakeObj(string name, int row, int lh, int x, int y)
 void CreatePanelObjects()
 {
    if(panelCreated) return;
-   int lh=InpFontSize+4, x=InpCornerX, y=InpCornerY;
+   int x = InpCornerX;
+   int y = InpCornerY;
+   
+   // Background
+   MakeRect(panelPrefix+"BG", x, y, 220, 240);
+   MakeLbl(panelPrefix+"Title", x+10, y+8, 10, clrWhite, "Trebuchet MS");
+   ObjectSetString(0, panelPrefix+"Title", OBJPROP_TEXT, "SMART CHANDELIER EXIT");
 
-   MakeObj(pL0,   0, lh, x, y);
-   MakeObj(pL1,   1, lh, x, y);
-   MakeObj(pSEP1, 2, lh, x, y);
-   MakeObj(pL2,   3, lh, x, y);
-   MakeObj(pSEP2, 4, lh, x, y);
-   MakeObj(pL3,   5, lh, x, y);
-   MakeObj(pL4,   6, lh, x, y);
+   // --- SETUP ---
+   MakeLbl(panelPrefix+"H1", x+10, y+35, 9, C'200,120,0', "Trebuchet MS");
+   ObjectSetString(0, panelPrefix+"H1", OBJPROP_TEXT, "■ SETUP");
+   
+   MakeLbl(panelPrefix+"P_R_L", x+15, y+55, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"P_R_L", OBJPROP_TEXT, "Pearson R:");
+   MakeLbl(panelPrefix+"P_R_V", x+100, y+55, 9, clrWhite, "Consolas");
+   
+   MakeLbl(panelPrefix+"Reg_L", x+15, y+70, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Reg_L", OBJPROP_TEXT, "Regime:");
+   MakeLbl(panelPrefix+"Reg_V", x+100, y+70, 9, clrWhite, "Consolas");
 
-   ObjectSetString (0,pSEP1,OBJPROP_TEXT, "──────────────");
-   ObjectSetInteger(0,pSEP1,OBJPROP_COLOR, clrDimGray);
-   ObjectSetString (0,pSEP2,OBJPROP_TEXT, "──────────────");
-   ObjectSetInteger(0,pSEP2,OBJPROP_COLOR, clrDimGray);
+   MakeLbl(panelPrefix+"ATR_L", x+15, y+85, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"ATR_L", OBJPROP_TEXT, "ATR Base:");
+   MakeLbl(panelPrefix+"ATR_V", x+100, y+85, 9, clrWhite, "Consolas");
+
+   // --- EXECUTION ---
+   MakeLbl(panelPrefix+"H2", x+10, y+110, 9, C'200,120,0', "Trebuchet MS");
+   ObjectSetString(0, panelPrefix+"H2", OBJPROP_TEXT, "■ EXECUTION");
+   
+   MakeLbl(panelPrefix+"Dir_L", x+15, y+130, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Dir_L", OBJPROP_TEXT, "Direction:");
+   MakeLbl(panelPrefix+"Dir_V", x+100, y+130, 9, clrWhite, "Consolas");
+   
+   MakeLbl(panelPrefix+"Stop_L", x+15, y+145, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Stop_L", OBJPROP_TEXT, "Stop Level:");
+   MakeLbl(panelPrefix+"Stop_V", x+100, y+145, 9, clrWhite, "Consolas");
+   
+   MakeLbl(panelPrefix+"Dist_L", x+15, y+160, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Dist_L", OBJPROP_TEXT, "Distance:");
+   MakeLbl(panelPrefix+"Dist_V", x+100, y+160, 9, clrWhite, "Consolas");
+
+   // --- INSIGHTS ---
+   MakeLbl(panelPrefix+"H3", x+10, y+185, 9, C'200,120,0', "Trebuchet MS");
+   ObjectSetString(0, panelPrefix+"H3", OBJPROP_TEXT, "■ INSIGHTS");
+   
+   MakeLbl(panelPrefix+"Fake_L", x+15, y+205, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Fake_L", OBJPROP_TEXT, "Fake Flips:");
+   MakeLbl(panelPrefix+"Fake_V", x+100, y+205, 9, clrWhite, "Consolas");
+   
+   MakeLbl(panelPrefix+"Last_L", x+15, y+220, 9, clrSilver, "Consolas"); ObjectSetString(0, panelPrefix+"Last_L", OBJPROP_TEXT, "Bars Since:");
+   MakeLbl(panelPrefix+"Last_V", x+100, y+220, 9, clrWhite, "Consolas");
 
    panelCreated = true;
 }
 
-void SetLabel(string name, string txt, color clr)
+void SetLblTxt(string name, string txt, color clr=clrNONE)
 {
-   ObjectSetString (0, name, OBJPROP_TEXT,  txt);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+   ObjectSetString(0, panelPrefix+name, OBJPROP_TEXT, txt);
+   if(clr != clrNONE) ObjectSetInteger(0, panelPrefix+name, OBJPROP_COLOR, clr);
 }
 
 void UpdatePanel(int idx, const double &close[], const double &atr[])
@@ -317,20 +363,42 @@ void UpdatePanel(int idx, const double &close[], const double &atr[])
    double rNow   = RBuffer[idx];
    double rPrev  = (idx>=3) ? RBuffer[idx-3] : rNow;
    double rDelta = rNow - rPrev;
-   string dIcon  = (rDelta>0.10)?"↑↑":(rDelta>0.02)?"↑":(rDelta<-0.10)?"↓↓":(rDelta<-0.02)?"↓":"→";
+   string dIcon  = (rDelta>0.10)?"^":(rDelta>0.02)?"~":(rDelta<-0.10)?"v":(rDelta<-0.02)?"_":"-";
 
    double activeSL = (curDir==1)?LongRawBuffer[idx]:ShortRawBuffer[idx];
-   double slDist   = MathAbs(close[idx]-activeSL);
+   
+   // DÜZELTME: MQL5'te close fiyatı Bid'dir. Short stop'lar Ask ile tetiklenir.
+   // Gerçek SL mesafesini bulmak için Short yönünde fiyata spread ekleyerek Ask fiyatını buluyoruz.
+   double livePrice = close[idx];
+   if(curDir == -1) livePrice += SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * _Point;
+
+   double slDist   = MathAbs(livePrice - activeSL);
    double slU      = (distSize>0) ? slDist/distSize : 0;
    double slR      = (atr[idx]>0) ? slDist/atr[idx] : 0;
 
    RefreshRollingStats();
 
-   SetLabel(pL0, StringFormat("Smart CE · %s · %s", _Symbol, PeriodToString(_Period)), clrDimGray);
-   SetLabel(pL1, DirLbl(curDir), DirClr(curDir));
-   SetLabel(pL2, StringFormat("SL %.1f%s  %.2fR", slU, distLabel, slR), InpPanelColor);
-   SetLabel(pL3, StringFormat("R %+.3f %s  %s", rNow, dIcon, RegimeLbl(rNow)), RegimeClr(rNow));
-   SetLabel(pL4, StringFormat("F|R| %.3f  RL|R| %.3f", cachedFakeAvgR, cachedRealAvgR), InpPanelColor);
+   // Setup
+   SetLblTxt("P_R_V", StringFormat("%.2f %s", rNow, dIcon), RegimeClr(rNow));
+   SetLblTxt("Reg_V", RegimeLbl(rNow), RegimeClr(rNow));
+   SetLblTxt("ATR_V", StringFormat("%d / %.1fx", InpATRPeriod, InpMultiplier), clrSilver);
+
+   // Execution
+   SetLblTxt("Dir_V", DirLbl(curDir), DirClr(curDir));
+   SetLblTxt("Stop_V", DoubleToString(activeSL, _Digits), clrWhite);
+   
+   if(distLabel == "")
+      SetLblTxt("Dist_V", StringFormat("%.1f (%.1fR)", slU, slR), clrSilver);
+   else
+      SetLblTxt("Dist_V", StringFormat("%.1f %s (%.1fR)", slU, distLabel, slR), clrSilver);
+
+   // Insights
+   double fakePct = (cachedTotalFlips>0) ? (cachedFakeFlips*100.0/cachedTotalFlips) : 0;
+   color fakeClr = (fakePct>40) ? clrCrimson : (fakePct>20) ? clrGoldenrod : clrLimeGreen;
+   SetLblTxt("Fake_V", StringFormat("%.1f%%", fakePct), fakeClr);
+   
+   int barsSince = (curTrendStartBar>0) ? (idx - curTrendStartBar) : 0;
+   SetLblTxt("Last_V", StringFormat("%d bars", barsSince), clrSilver);
 
    ChartRedraw();
 }
@@ -377,6 +445,7 @@ int OnCalculate(const int rates_total,
       curTrendStartBar=-1; curDirection=0;
       lastFlipCountForStats=-1;
       panelCreated=false;
+      lastDirection=0; lastFlipTime=0;   // alarm durumunu da sıfırla: TF/sembol degisiminde sahte flip alarmi cikmasin
       ObjectsDeleteAll(0, panelPrefix);
    }
    else { start = prev_calculated-1; }

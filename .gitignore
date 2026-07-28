@@ -1,0 +1,18 @@
+# --- Compiled MQL binaries (build artifacts, never versioned) ---
+*.ex5
+*.ex4
+
+# --- Local IDE / editor config ---
+*.code-workspace
+.vscode/
+
+# --- Trix Trend lives in its own repository (see commit cedd67b) ---
+Trix Trend.mq5
+Trix Trend.ex5
+Trix Trend - Manual.txt
+Trix Trend README.md
+
+# --- OS noise ---
+Thumbs.db
+desktop.ini
+.DS_Store
