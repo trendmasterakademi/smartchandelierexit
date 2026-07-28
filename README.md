@@ -20,7 +20,7 @@ The indicator is **non-repainting**: the stop line is computed on closed bars wi
    - Arrows are drawn only AFTER the flip has survived `InpFakeFlipBars` bars. This confirmation delay filters out flips that instantly reverse.
 
 3. **Info Panel (optional)**
-   - Shows the current direction, stop distance (in points/pips and ATR units), trend quality (Pearson R), and flip statistics.
+   - A bordered box in the top-left corner, grouped into three sections: **SETUP** (Pearson R with its momentum, regime label, ATR settings), **EXECUTION** (direction, exact stop price, distance in pips/points/raw price and in ATR units), and **INSIGHTS** (share of recent flips that proved fake, and bars elapsed since the current direction began).
 
 ## Input Parameters
 ### CE Parameters
@@ -35,7 +35,10 @@ The indicator is **non-repainting**: the stop line is computed on closed bars wi
 
 ### Visual & Other Settings
 * `InpFakeFlipBars` (5): A flip that reverses within this many bars is tagged FAKE. Also the confirmation delay for drawing arrows.
-* Panel visibility, colors, fonts, and alert settings are completely customizable.
+* `InpShowPanel` / `InpShowFlips` (true): Show or hide the info panel and the flip arrows.
+* `InpCornerX` (20) / `InpCornerY` (20): Panel offset from the left and top edges, in pixels.
+* `InpUnitMode` (AUTO): Distance unit shown on the panel — pips for Forex, raw price difference for indices, crypto and shares, or forced to pips/points.
+* `InpAlertOnFlip` / `InpPushOnFlip` (false): Pop-up alert and mobile push notification on a confirmed flip.
 
 ## Suggested Use
 - **Trend direction / bias**: Trade in the direction of the active stop line.

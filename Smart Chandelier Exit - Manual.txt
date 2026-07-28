@@ -37,54 +37,80 @@ WHAT YOU SEE ON THE CHART
      is a deliberate confirmation delay: it filters out flips that instantly
      reverse, and it guarantees the arrow is non-repainting.
 
-3. INFO PANEL (optional, InpShowPanel) - top-right corner
+3. INFO PANEL (optional, InpShowPanel) - top-left corner
+   A bordered box, positioned InpCornerX pixels from the left edge and InpCornerY
+   pixels from the top. It is grouped into three sections: what the market looks
+   like (SETUP), where the stop currently sits (EXECUTION), and how trustworthy
+   recent flips have been (INSIGHTS).
 
 
-THE PANEL, LINE BY LINE
------------------------
-Line 1 (title):   Smart CE - SYMBOL - TIMEFRAME
-   Just identifies the instrument and timeframe the panel refers to.
+THE PANEL, ROW BY ROW
+---------------------
+Title:   SMART CHANDELIER EXIT
 
-Line 2 (direction):   BULLISH / BEARISH / ----
-   The current trend state as defined by the stop line. BULLISH = green Long stop
-   is active; BEARISH = red Short stop is active.
+--- SETUP ---
 
-Line 3 (stop distance):   SL  <distance><unit>  <x>R
-   How far the active stop is from the current price.
-   - <distance><unit>: distance in pips or points (see Distance Unit below).
-   - <x>R: the SAME distance expressed in ATR units. For example "0.96R" means the
-     stop is 0.96 ATR away from price. IMPORTANT: this "R" means ATR-multiples of
-     distance. It is NOT the Pearson R on the next line. Two different R's:
-       * "0.96R" on this line  = stop distance measured in ATRs.
-       * "R +0.830" below      = Pearson correlation coefficient.
-
-Line 4 (trend quality):   R  <value>  <arrow>  <regime>
-   - R <value>: the Pearson correlation coefficient between price and time over the
-     last InpRPeriod bars. Range -1 to +1.
+Pearson R:   <value> <trend char>
+   The Pearson correlation coefficient between price and time over the last
+   InpRPeriod bars. Range -1 to +1.
        * near +1 = clean straight-line uptrend
        * near -1 = clean straight-line downtrend
        * near  0 = no linear trend (choppy / ranging)
-   - <arrow>: the direction R is moving (momentum of trend quality), comparing now
-     to 3 bars ago:
-       * up-up   = rising fast      up = rising
-       * right   = flat
-       * down    = falling          down-down = falling fast
-   - <regime>: a plain-language label derived from |R| and the threshold inputs:
+   The trailing character shows which way R itself is moving (the momentum of
+   trend quality), comparing now to 3 bars ago:
+       ^  rising fast      ~  rising
+       -  flat
+       _  falling          v  falling fast
+   The value is colored by regime (see below).
+
+Regime:   <label>
+   A plain-language label derived from |R| and the threshold inputs:
        * Strong UP / Strong DOWN     when |R| >= InpRStrongLevel   (default 0.7)
        * Moderate up / Moderate down when |R| >= InpRModerateLevel (default 0.5)
        * Weak                        when |R| >= 0.3
        * RANGING                     when |R| < 0.3
-     The line is also colored by regime (green shades up, red shades down, gray
-     when ranging).
+   Colored green for up, red for down, amber when weak, gray when ranging.
 
-Line 5 (flip statistics):   F|R|  <value>   RL|R|  <value>
-   Rolling statistics over the last 50 flips:
-   - F|R| = the average |Pearson R| recorded at FAKE flips (flips that reversed
-     within InpFakeFlipBars bars).
-   - RL|R| = the average |Pearson R| recorded at REAL flips (flips that lasted).
-   These two averages summarize the trend-quality context in which recent fake and
-   real flips occurred, letting you gauge how much confidence to place in a new flip
-   on the current instrument and timeframe.
+ATR Base:   <period> / <multiplier>x
+   The two settings that size the stop, echoed here so you can see at a glance
+   which configuration the lines on the chart were drawn with.
+
+--- EXECUTION ---
+
+Direction:   BULLISH / BEARISH / ----
+   The current trend state as defined by the stop line. BULLISH = green Long stop
+   is active; BEARISH = red Short stop is active.
+
+Stop Level:   <price>
+   The exact price of the currently active stop line, at full symbol precision.
+   This is the number you would place a stop order at.
+
+Distance:   <distance> <unit> (<x>R)
+   How far the active stop is from the current price.
+   - <distance> <unit>: distance in pips, points, or raw price (see Distance Unit
+     below). On short trends the spread is added to the price first, because the
+     close is the Bid while a short stop is triggered on the Ask.
+   - <x>R: the SAME distance expressed in ATR units. For example "0.96R" means the
+     stop is 0.96 ATR away from price.
+
+     IMPORTANT - two different R's on this panel:
+       * the "R" inside Distance   = stop distance measured in ATRs.
+       * the "Pearson R" row above = correlation coefficient of price vs time.
+     They are unrelated. One is a distance, the other is a trend-quality score.
+
+--- INSIGHTS ---
+
+Fake Flips:   <percentage>
+   Of the last 50 direction flips, the share that turned out to be FAKE - that is,
+   flips that reversed again within InpFakeFlipBars bars. Colored green below 20%,
+   amber between 20% and 40%, red above 40%. A high reading is a warning that the
+   current instrument and timeframe are producing unreliable flips, and that a
+   fresh flip deserves less confidence.
+
+Bars Since:   <n> bars
+   How many bars have passed since the current trend direction began. Useful for
+   judging maturity: a direction only a few bars old has not yet cleared the
+   fake-flip window, while a long-running one has already proven itself.
 
 
 INPUT PARAMETERS
@@ -107,15 +133,16 @@ InpFakeFlipBars (default 5)  A flip that reverses within this many bars is tagge
 === Visual ===
 InpShowPanel  (default true)   Show/hide the info panel.
 InpShowFlips  (default true)   Show/hide the confirmed flip arrows.
-InpPanelColor (default White)  Default text color of the panel.
-InpFontSize   (default 10)     Panel font size.
-InpCornerX    (default 10)     Panel horizontal offset from the right edge (pixels).
+InpCornerX    (default 20)     Panel horizontal offset from the left edge (pixels).
 InpCornerY    (default 20)     Panel vertical offset from the top edge (pixels).
 
 === Distance Unit ===
-InpUnitMode   (default AUTO)   How the stop distance on panel line 3 is expressed:
-                               AUTO  = pips for Forex, points otherwise (chosen
-                                       automatically from the symbol type)
+InpUnitMode   (default AUTO)   How the Distance row on the panel is expressed:
+                               AUTO  = pips for Forex symbols. For indices, crypto
+                                       and shares the raw price difference is shown
+                                       instead, because MT5 points are misleading
+                                       on those instruments. Chosen automatically
+                                       from the symbol type.
                                PIP   = force pips
                                POINT = force points
 
@@ -141,8 +168,10 @@ SUGGESTED USE
 - Trailing stop: use the plotted line as a mechanical stop that never loosens.
 - Quality filter: prefer signals when the regime is Strong or Moderate in the trade
   direction, and be cautious (or stand aside) when the panel reads RANGING.
-- Flip trust: use the F|R| vs RL|R| gauge and the R momentum arrow to judge whether
-  a fresh flip is likely genuine or a counter-trend trap.
+- Flip trust: use the Fake Flips percentage together with the Pearson R momentum
+  character to judge whether a fresh flip is likely genuine or a counter-trend trap.
+  A low fake-flip share plus R strengthening in the new direction is the supportive
+  combination; a high share plus R still flat or fading is the warning one.
 
 Works on any symbol and timeframe. Default parameters (22/22/3.0) are a classic
 starting point; tune the ATR multiplier and lookback to the volatility of your
